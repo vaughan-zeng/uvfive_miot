@@ -1,0 +1,71 @@
+set_child_lock_on:
+  description: Turn the uvFive MIoT device child lock on.
+  fields:
+    entity_id:
+      description: Name of the uvFive MIoT device entity.
+      example: "switch.uvfive_slamp"
+
+set_child_lock_off:
+  description: Turn the uvFive MIoT device child lock off.
+  fields:
+    entity_id:
+      description: Name of the uvFive MIoT device entity.
+      example: "switch.uvfive_slamp"
+
+set_slamp_disable_radar_on:
+  description: Turn the uvFive sterilization lamp disable radar on.
+  fields:
+    entity_id:
+      description: Name of the uvFive sterilization lamp entity.
+      example: "switch.uvfive_slamp"
+
+set_slamp_disable_radar_off:
+  description: Turn the uvFive sterilization lamp disable radar off.
+  fields:
+    entity_id:
+      description: Name of the uvFive sterilization lamp entity.
+      example: "switch.uvfive_slamp"
+
+set_slamp_sterilization_time:
+  description: Set the uvFive sterilization lamp sterilization time.
+  fields:
+    entity_id:
+      description: Name of the uvFive sterilization lamp entity.
+      example: "switch.uvfive_slamp"
+    minutes:
+      description: Sterilization time, between 5 and 45.
+      example: 30
+
+set_rack_target_time:
+  description: Set the uvfive sterilization rack target time.
+  fields:
+    entity_id:
+      description: Name of the uvfive sterilization rack entity.
+      example: "switch.kitchen_uvfive_rack"
+    minutes:
+      description: Target time, between 15 and 90.
+      example: 30
+
+set_rack_alarm_on:
+  description: Turn the uvfive sterilization rack alarm on.
+  fields:
+    entity_id:
+      description: Name of the uvfive sterilization rack entity.
+      example: "switch.kitchen_uvfive_rack"
+
+set_rack_alarm_off:
+  description: Turn the uvfive sterilization rack alarm off.
+  fields:
+    entity_id:
+      description: Name of the uvfive sterilization rack entity.
+      example: "switch.kitchen_uvfive_rack"
+
+set_rack_running_mode:
+  description: Set the uvfive sterilization rack running mode.
+  fields:
+    entity_id:
+      description: Name of the uvfive sterilization rack entity.
+      example: "switch.kitchen_uvfive_rack"
+    mode:
+      description: Running mode, valid values are 'Normal', 'Quick' and 'Favourite'.
+      example: "Normal"

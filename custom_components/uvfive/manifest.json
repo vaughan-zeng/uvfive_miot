@@ -1,0 +1,16 @@
+{
+  "domain": "uvfive",
+  "name": "uvFive MIoT device",
+  "config_flow": true,
+  "documentation": "https://github.com/vaughan-zeng/uvfive",
+  "issue_tracker": "https://github.com/vaughan-zeng/uvfive/issues",
+  "requirements": [
+    "construct==2.10.56",
+    "python-miio>=0.5.3"
+  ],
+  "dependencies": [],
+  "codeowners": [
+    "@von"
+  ],
+  "version": "v0.1"
+}
