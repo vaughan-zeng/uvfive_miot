@@ -93,6 +93,7 @@ class uvFiveMiotFlowHandler(config_entries.ConfigFlow, domain = DOMAIN):
 
     async def async_step_device(self, user_input=None):
         """Handle a flow initialized by the user to configure a uvfive miot device."""
+        errors = {}
         if user_input is not None:
             self.host = user_input[CONF_HOST]
             token = user_input[CONF_TOKEN]
