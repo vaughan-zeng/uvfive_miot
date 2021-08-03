@@ -1,0 +1,26 @@
+{
+    "config": {
+        "flow_title": "uvFive MIoT device: {name}",
+        "step": {
+            "user": {
+                "title": "uvFive MIoT device",
+                "description": "Connect to your uvFive MIoT device, xxxxxx",
+                "data": {
+                    "host": "[%key:common::config_flow::data::ip%]",
+                    "token": "[%key:common::config_flow::data::token%]",
+                    "name": "Device name (optional)",
+                    "model": "Model, empty for auto (optional)"
+                }
+            }
+        },
+        "error": {
+            "invalid_host": "[%key:common::config_flow::error::invalid_host%], see https://www.home-assistant.io/integrations/xiaomi_aqara/#connection-problem",
+            "invalid_token": "Invalid miot token"
+        },
+        "abort": {
+            "already_configured": "[%key:common::config_flow::abort::already_configured_device%]",
+            "already_in_progress": "[%key:common::config_flow::abort::already_in_progress%]",
+            "not_xiaomi_aqara": "Not a uvFive MIoT device, discovered device did not match known gateways"
+        }
+    }
+}
