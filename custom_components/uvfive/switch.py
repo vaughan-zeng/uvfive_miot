@@ -2,14 +2,18 @@
 import asyncio
 from functools import partial
 import logging
+
+from miio import Device, DeviceException
+import voluptuous as vol
 from enum import IntEnum
 from datetime import datetime, timedelta
 
-from miio import Device, DeviceException
-
-import voluptuous as vol
-
-from homeassistant.components.switch import PLATFORM_SCHEMA, SwitchEntity
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers import device_registry as dr
+from homeassistant.components.switch import (
+    # PLATFORM_SCHEMA,
+    SwitchEntity,
+)
 from homeassistant.config_entries import SOURCE_IMPORT
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -18,36 +22,46 @@ from homeassistant.const import (
     CONF_NAME,
     CONF_TOKEN,
 )
-from homeassistant.exceptions import PlatformNotReady
 import homeassistant.helpers.config_validation as cv
-# from miio.click_common import command, format_output, EnumType
+
+from .const import (
+    CONF_DEVICE,
+    CONF_FLOW_TYPE,
+    CONF_MAC,
+    CONF_MODEL,
+    DOMAIN,
+    # UVFIVE_MODELS,
+    SERVICE_SET_CHILD_LOCK_ON,
+    SERVICE_SET_CHILD_LOCK_OFF,
+    SERVICE_SET_SLAMP_STERILIZATION_TIME,
+    SERVICE_SET_SLAMP_DISABLE_RADAR_ON,
+    SERVICE_SET_SLAMP_DISABLE_RADAR_OFF,
+    SERVICE_SET_RACK_TARGET_TIME,
+    SERVICE_SET_RACK_ALARM_ON,
+    SERVICE_SET_RACK_ALARM_OFF,
+    SERVICE_SET_RACK_RUNNING_MODE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_NAME = "uvFive MIoT device"
 DATA_KEY = "switch.uvfive_miot"
-DOMAIN = "uvfive"
 
-CONF_MODEL = "model"
-CONF_MODELS = [
-    "uvfive.s_lamp.slmap2",
-    "uvfive.steriliser.tiger",
-]
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_TOKEN): vol.All(cv.string, vol.Length(min=32, max=32)),
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_MODEL): vol.In(CONF_MODELS),
-    }
-)
+# PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+#     {
+#         vol.Required(CONF_HOST): cv.string,
+#         vol.Required(CONF_TOKEN): vol.All(cv.string, vol.Length(min=32, max=32)),
+#         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+#         vol.Optional(CONF_MODEL): vol.In(UVFIVE_MODELS),
+#     }
+# )
 
 ATTR_MINUTES = 'minutes'
 ATTR_FAULT = 'fault_info'
 ATTR_UV_STATUS = 'status'
 ATTR_STOP_COUNTDOWN = 'stop_countdown'
 ATTR_CHILD_LOCK = 'child_lock'
+ATTR_MODEL = "model"
 
 ATTR_SLAMP_STERILIZATION_TIME = 'sterilization_time'
 ATTR_SLAMP_DISABLE_RADAR = 'Disable_radar'
@@ -55,19 +69,6 @@ ATTR_SLAMP_DISABLE_RADAR = 'Disable_radar'
 ATTR_RACK_TARGET_TIME = 'target_time'
 ATTR_RACK_WORKING_TIME = 'working_time'
 ATTR_RACK_ALARM = 'alarm'
-
-SERVICE_SET_CHILD_LOCK_ON = "set_child_lock_on"
-SERVICE_SET_CHILD_LOCK_OFF = "set_child_lock_off"
-
-SERVICE_SET_SLAMP_STERILIZATION_TIME = "set_slamp_sterilization_time"
-SERVICE_SET_SLAMP_DISABLE_RADAR_ON = "set_slamp_disable_radar_on"
-SERVICE_SET_SLAMP_DISABLE_RADAR_OFF = "set_slamp_disable_radar_off"
-
-SERVICE_SET_RACK_TARGET_TIME = "set_rack_target_time"
-SERVICE_SET_RACK_ALARM_ON = "set_rack_alarm_on"
-SERVICE_SET_RACK_ALARM_OFF = "set_rack_alarm_off"
-SERVICE_SET_RACK_RUNNING_MODE = 'set_rack_running_mode'
-
 
 SUCCESS = ["ok"]
 
@@ -117,7 +118,6 @@ SERVICE_SCHEMA_RACK_TARGET_TIME = SERVICE_SCHEMA.extend(
 )
 
 SERVICE_SCHEMA_RACK_RUNNING_MODE = SERVICE_SCHEMA.extend(
-    # {vol.Required(ATTR_MODE): vol.All(int, vol.Range(min=0, max=2))}
     {vol.Required(ATTR_MODE): vol.All(vol.In(['Normal', 'Quick', 'Favourite']))}
 )
 
@@ -139,8 +139,6 @@ SERVICE_TO_METHOD = {
 }
 
 
-
-
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Import uvFive MIoT device configuration from YAML."""
     _LOGGER.warning(
@@ -159,75 +157,38 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the uvFive MIoT switch from a config entry."""
     entities = []
 
-    host = config_entry[CONF_HOST]
-    token = config_entry[CONF_TOKEN]
-    name = config_entry[CONF_NAME]
-    model = config_entry.get(CONF_MODEL)
-    # unique_id = None
+    host = config_entry.data[CONF_HOST]
+    token = config_entry.data[CONF_TOKEN]
+    name = config_entry.title
+    model = config_entry.data[CONF_MODEL]
     unique_id = config_entry.unique_id
 
-
-
-# async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-#     """Set up the switch from config."""
-#     entities = []
-
-#     host = config[CONF_HOST]
-#     token = config[CONF_TOKEN]
-#     name = config[CONF_NAME]
-#     model = config.get(CONF_MODEL)
-#     unique_id = None
-
-
-
-
-    # if model is None:
-    #     try:
-    #         miot_device = Device(host, token)
-    #         device_info = await hass.async_add_executor_job(miot_device.info)
-    #         model = device_info.model
-    #         # unique_id = f"{model}-{device_info.mac_address}-uvfive"
-    #         _LOGGER.info(
-    #             "%s %s %s detected",
-    #             model,
-    #             device_info.firmware_version,
-    #             device_info.hardware_version,
-    #         )
-    #     except DeviceException as ex:
-    #         raise PlatformNotReady from ex
-
-
-
-
-
-
-
-    if model in ["uvfive.s_lamp.slmap2", "uvfive.steriliser.tiger"]:
+    if config_entry.data[CONF_FLOW_TYPE] == CONF_DEVICE:
         if DATA_KEY not in hass.data:
             hass.data[DATA_KEY] = {}
 
-        _LOGGER.debug("Initializing with host %s (token %s...)", host, token[:5])
+        _LOGGER.info("Initializing with host %s (token %s...)", host, token[:5])
 
         if model in ["uvfive.s_lamp.slmap2"]:
             uvfive_device = Device(host, token)
-            device = uvFive_sLamp_Switch(name, uvfive_device, model, unique_id)
+            device = uvFiveSterilizationLampSwitch(name, uvfive_device, config_entry, unique_id)
             entities.append(device)
             hass.data[DATA_KEY][host] = device
         elif model in ["uvfive.steriliser.tiger"]:
             uvfive_device = Device(host, token)
-            device = uvFive_Rack_Switch(name, uvfive_device, model, unique_id)
+            device = uvFiveSterilizationRackSwitch(name, uvfive_device, config_entry, unique_id)
             entities.append(device)
             hass.data[DATA_KEY][host] = device
         else:
             _LOGGER.error(
                 "Unsupported device found! Please create an issue at "
-                "https://github.com/vaughan-zeng/uvfive/issues "
+                "https://github.com/vaughan-zeng/uvfive_miot/issues "
                 "and provide the following data: %s",
                 model,
             )
 
         async def async_service_handler(service):
-            """Map services to methods on uvFive_sLamp_Switch."""
+            """Map services to methods on uvFive MIoT device."""
             method = SERVICE_TO_METHOD.get(service.service)
             params = {
                 key: value
@@ -262,27 +223,18 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
     async_add_entities(entities, update_before_add=True)
 
-class uvFive_miot_Switch(SwitchEntity):
-    """Representation of uvFive MIoT Switch."""
 
-    def __init__(self, name, uvfive_device, model, unique_id):
-        """Initialize the uvFive MIoT Switch."""
-        self._name = name
-        self._uvfive_device = uvfive_device
-        self._model = model
+class uvFiveMIoTEntity(Entity):
+    """Representation of a base uvFive MIoT Entity."""
+
+    def __init__(self, name, device, entry, unique_id):
+        """Initialize the uvFive MIoT Device."""
+        self._device = device
+        self._model = entry.data[CONF_MODEL]
+        self._mac = entry.data[CONF_MAC]
+        self._device_id = entry.unique_id
         self._unique_id = unique_id
-        self._icon = 'mdi:lightbulb-cfl'
-        self._available = False
-        self._state = None
-        self._state_attrs = {
-            ATTR_STOP_COUNTDOWN: None,
-            ATTR_CHILD_LOCK: None,
-            ATTR_FAULT: None,
-            ATTR_UV_STATUS: None,
-            CONF_MODEL: self._model}
-
-        self._skip_update = False
-
+        self._name = name
 
     @property
     def unique_id(self):
@@ -291,13 +243,41 @@ class uvFive_miot_Switch(SwitchEntity):
 
     @property
     def name(self):
-        """Return the name of the device if any."""
+        """Return the name of this entity, if any."""
         return self._name
 
     @property
-    def icon(self):
-        """Return the icon to use for device if any."""
-        return self._icon
+    def device_info(self):
+        """Return the device info."""
+        device_info = {
+            "identifiers": {(DOMAIN, self._device_id)},
+            "manufacturer": "uvFive",
+            "name": self._name,
+            "model": self._model,
+        }
+
+        if self._mac is not None:
+            device_info["connections"] = {(dr.CONNECTION_NETWORK_MAC, self._mac)}
+
+        return device_info
+
+
+class uvFiveGenericSwitch(uvFiveMIoTEntity, SwitchEntity):
+    """Representation of uvFive MIoT Switch Generic."""
+
+    def __init__(self, name, device, entry, unique_id):
+        """Initialize the uvFive MIoT Switch."""
+        super().__init__(name, device, entry, unique_id)
+
+        self._available = False
+        self._state = None
+        self._state_attrs = {
+            ATTR_STOP_COUNTDOWN: None,
+            ATTR_CHILD_LOCK: None,
+            ATTR_FAULT: None,
+            ATTR_UV_STATUS: None,
+            ATTR_MODEL: self._model}
+        self._skip_update = False
 
     @property
     def available(self):
@@ -305,7 +285,7 @@ class uvFive_miot_Switch(SwitchEntity):
         return self._available
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         """Return the state attributes of the device."""
         return self._state_attrs
 
@@ -326,10 +306,9 @@ class uvFive_miot_Switch(SwitchEntity):
                 self._available = False
             return False
 
-
     async def _uvfive_turn_on(self, **kwargs):
         """Turn the uvFive MIoT Switch on."""
-        result = await self._try_command(kwargs['error_info'], self._uvfive_device.send,
+        result = await self._try_command(kwargs['error_info'], self._device.send,
             'set_properties', [{"siid":kwargs['siid'], "piid":kwargs['piid'], "value":True}]
         )
 
@@ -339,7 +318,7 @@ class uvFive_miot_Switch(SwitchEntity):
 
     async def _uvfive_turn_off(self, **kwargs):
         """Turn the uvFive MIoT Switch off."""
-        result = await self._try_command(kwargs['error_info'], self._uvfive_device.send,
+        result = await self._try_command(kwargs['error_info'], self._device.send,
             'set_properties', [{"siid":kwargs['siid'], "piid":kwargs['piid'], "value":False}]
         )
 
@@ -347,33 +326,38 @@ class uvFive_miot_Switch(SwitchEntity):
             self._state = False
             self._skip_update = True
 
-
     async def _uvfive_set_child_lock(self, **kwargs):
         """Turn the child lock on."""
-        await self._try_command(kwargs['error_info'], self._uvfive_device.send,
+        await self._try_command(kwargs['error_info'], self._device.send,
             'set_properties', [{"siid":kwargs['siid'], "piid":kwargs['piid'], "value":kwargs['value']}]
         )
 
 
-class uvFive_sLamp_Switch(uvFive_miot_Switch):
-    """Representation of uvFive MIoT sLamp."""
+class uvFiveSterilizationLampSwitch(uvFiveGenericSwitch):
+    """Representation of uvFive MIoT Sterilization Lamp."""
 
     def __init__(self, name, uvfive_device, model, unique_id):
-        """Initialize the uvFive MIoT sLamp."""
+        """Initialize the uvFive MIoT Sterilization Lamp."""
         super().__init__(name, uvfive_device, model, unique_id)
 
+        self._icon = 'mdi:lightbulb-cfl'
         self._state_attrs[ATTR_SLAMP_STERILIZATION_TIME] = None
         self._state_attrs[ATTR_SLAMP_DISABLE_RADAR] = None
 
+    @property
+    def icon(self):
+        """Return the icon to use for device if any."""
+        return self._icon
+
     async def async_turn_on(self):
-        """Turn the uvFive MIoT sLamp on."""
-        await self._uvfive_turn_on(error_info = "Turning the uvFive MIoT sLamp on failed.", 
+        """Turn the uvFive MIoT Sterilization Lamp on."""
+        await self._uvfive_turn_on(error_info = "Turning the uvFive MIoT Sterilization Lamp on failed.", 
             siid = 2, piid = 2,
         )
 
     async def async_turn_off(self):
-        """Turn the uvFive MIoT sLamp off."""
-        await self._uvfive_turn_off(error_info = "Turning the uvFive MIoT sLamp off failed.", 
+        """Turn the uvFive MIoT Sterilization Lamp off."""
+        await self._uvfive_turn_off(error_info = "Turning the uvFive MIoT Sterilization Lamp off failed.", 
             siid = 2, piid = 2,
         )
 
@@ -386,7 +370,7 @@ class uvFive_sLamp_Switch(uvFive_miot_Switch):
 
         try:
             state = await self.hass.async_add_executor_job(
-                self._uvfive_device.send,
+                self._device.send,
                 'get_properties',
                 [{"siid":2,"piid":1},
                 {"siid":2,"piid":2},
@@ -396,7 +380,7 @@ class uvFive_sLamp_Switch(uvFive_miot_Switch):
                 {"siid":4,"piid":1},
                 {"siid":5,"piid":1}]
             )
-            _LOGGER.debug("Got the uvFive MIoT sLamp new state: %s", state)
+            _LOGGER.debug("Got the uvFive MIoT Sterilization Lamp new state: %s", state)
 
             self._available = True
 
@@ -416,7 +400,7 @@ class uvFive_sLamp_Switch(uvFive_miot_Switch):
     async def async_set_slamp_sterilization_time(self, minutes: int):
         """Set the UV sterilization time."""
         await self._try_command("Setting the UV sterilization time failed.",
-            self._uvfive_device.send, 'set_properties', [{"siid":2,"piid":6,"value":minutes}]
+            self._device.send, 'set_properties', [{"siid":2,"piid":6,"value":minutes}]
         )
 
     async def async_set_child_lock_on(self):
@@ -434,37 +418,43 @@ class uvFive_sLamp_Switch(uvFive_miot_Switch):
     async def async_set_slamp_disable_radar_on(self):
         """Turn the disable radar on."""
         await self._try_command( "Turning the disable radar on failed.",
-            self._uvfive_device.send, 'set_properties', [{"siid":5,"piid":1,"value":True}]
+            self._device.send, 'set_properties', [{"siid":5,"piid":1,"value":True}]
         )
 
     async def async_set_slamp_disable_radar_off(self):
         """Turn the disable radar off."""
         await self._try_command( "Turning the disable radar off failed.",
-            self._uvfive_device.send, 'set_properties', [{"siid":5,"piid":1,"value":False}]
+            self._device.send, 'set_properties', [{"siid":5,"piid":1,"value":False}]
         )
 
 
-class uvFive_Rack_Switch(uvFive_miot_Switch):
+class uvFiveSterilizationRackSwitch(uvFiveGenericSwitch):
     """Representation of uvFive MIoT Sterilization Rack."""
 
     def __init__(self, name, uvfive_device, model, unique_id):
         """Initialize the uvFive MIoT Sterilization Rack."""
         super().__init__(name, uvfive_device, model, unique_id)
 
+        self._icon = 'mdi:toaster'
         self._state_attrs[ATTR_MODE] = None
         self._state_attrs[ATTR_RACK_TARGET_TIME] = None
         self._state_attrs[ATTR_RACK_WORKING_TIME] = None
         self._state_attrs[ATTR_RACK_ALARM] = None
 
+    @property
+    def icon(self):
+        """Return the icon to use for device if any."""
+        return self._icon
+
     async def async_turn_on(self):
-        """Turn the uvFive MIoT Rack on."""
-        await self._uvfive_turn_on(error_info = "Turning the uvFive MIoT Rack on failed.", 
+        """Turn the uvFive MIoT Sterilization Rack on."""
+        await self._uvfive_turn_on(error_info = "Turning the uvFive MIoT Sterilization Rack on failed.", 
             siid = 2, piid = 3,
         )
 
     async def async_turn_off(self):
-        """Turn the uvFive MIoT Rack off."""
-        await self._uvfive_turn_off(error_info = "Turning the uvFive MIoT Rack off failed.", 
+        """Turn the uvFive MIoT Sterilization Rack off."""
+        await self._uvfive_turn_off(error_info = "Turning the uvFive MIoT Sterilization Rack off failed.", 
             siid = 2, piid = 3,
         )
 
@@ -478,7 +468,7 @@ class uvFive_Rack_Switch(uvFive_miot_Switch):
 
         try:
             state = await self.hass.async_add_executor_job(
-                self._uvfive_device.send,
+                self._device.send,
                 'get_properties',
                 [{"siid":2,"piid":1},
                 {"siid":2,"piid":2},
@@ -490,7 +480,7 @@ class uvFive_Rack_Switch(uvFive_miot_Switch):
                 {"siid":3,"piid":1},
                 {"siid":4,"piid":1}]
             )
-            _LOGGER.debug("Got the uvFive MIoT Rack new state: %s", state)
+            _LOGGER.debug("Got the uvFive MIoT Sterilization Rack new state: %s", state)
 
             self._available = True
 
@@ -512,25 +502,25 @@ class uvFive_Rack_Switch(uvFive_miot_Switch):
     async def async_set_rack_running_mode(self, mode: str):
         """Set the uvFive Rack running mode."""
         await self._try_command("Setting the uvFive Rack running mode failed.",
-            self._uvfive_device.send, 'set_properties', [{"siid":2, "piid":2, "value":RackMode[mode].value}]
+            self._device.send, 'set_properties', [{"siid":2, "piid":2, "value":RackMode[mode].value}]
         )
 
     async def async_set_rack_target_time(self, minutes: int):
         """Set the uvFive Rack target time."""
         await self._try_command("Setting the uvFive Rack target time failed.",
-            self._uvfive_device.send, 'set_properties', [{"siid":2, "piid":5, "value":minutes}]
+            self._device.send, 'set_properties', [{"siid":2, "piid":5, "value":minutes}]
         )
 
     async def async_set_rack_alarm_on(self):
         """Turn the uvFive Rack alarm on."""
         await self._try_command("Turning the uvFive Rack alarm on failed.",
-            self._uvfive_device.send, 'set_properties', [{"siid":3, "piid":1, "value":True}]
+            self._device.send, 'set_properties', [{"siid":3, "piid":1, "value":True}]
         )
 
     async def async_set_rack_alarm_off(self):
         """Turn the uvFive Rack alarm off."""
         await self._try_command("Turning the uvFive Rack alarm off failed.",
-            self._uvfive_device.send, 'set_properties', [{"siid":3, "piid":1, "value":False}]
+            self._device.send, 'set_properties', [{"siid":3, "piid":1, "value":False}]
         )
 
     async def async_set_child_lock_on(self):
@@ -544,7 +534,4 @@ class uvFive_Rack_Switch(uvFive_miot_Switch):
         await self._uvfive_set_child_lock(error_info = "Turning the uvFive Rack child lock off failed.", 
             siid = 4, piid = 1, value = False,
         )
-
-
-
 

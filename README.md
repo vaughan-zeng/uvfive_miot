@@ -1,7 +1,3 @@
-# *** Beta
-
-
-
 # uvFive MIoT device
 
 This is a custom component for Home Assistant to integrate the uvFive MIoT device.
@@ -51,25 +47,22 @@ Supported models: `uvfive.steriliser.tiger`.
   - Alarm
 
 # Install
-Download and copy custom_components/uvfive folder to custom_components folder in your HomeAssistant config folder
-
-Or you can install component with HACS
+You can install this custom component by adding this repository ([https://github.com/vaughan-zeng/uvfive_miot](https://github.com/vaughan-zeng/uvfive_miot/)) to [HACS](https://hacs.xyz/) in the settings menu of HACS first. You will find the custom component in the integration menu afterwards, look for 'Xiaomi Mi Smart Pedestal Fan Integration'. Alternatively, you can install it manually by copying the custom_component folder to your Home Assistant configuration folder.
 
 # Config
 
 ## HomeAssistant GUI
-Configuration > Integration > + > uvfive
+Configuration > Integration > + > uvFive MIoT device
 
 ### Configuration variables:
-- **name** (*Optional*): The name of your uvFive MIoT device.
 - **host** (*Required*): The IP of your uvFive MIoT device.
 - **token** (*Required*): The API token of your uvFive MIoT device.
-- **mode** (*Optional*): The mode of your uvFive MIoT device.
+- **name** (*Optional*): The name of your uvFive MIoT device.
 
 
 # Platform services
 
-#### Service `uvfive.set_child_lock__on`
+#### Service `uvfive.set_child_lock_on`
 
 Turn the child lock on.
 
@@ -77,7 +70,7 @@ Turn the child lock on.
 | ---------------------- | -------- | -------------------------------------- |
 | `entity_id`            | no       | Name of the uvFive MIoT device entity. |
 
-#### Service `uvfive.set_child_lock__off`
+#### Service `uvfive.set_child_lock_off`
 
 Turn the child lock off.
 
