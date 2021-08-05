@@ -1,4 +1,4 @@
-"""Config flow to configure uvFive MIoT device."""
+"""Config flow to configure Five MIoT device."""
 import logging
 from re import search
 
@@ -18,21 +18,25 @@ from .const import (
     DOMAIN,
     UVFIVE_MODELS,
 )
+from .device import ConnectFiveDevice
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = "uvFive MIoT device"
+DEFAULT_NAME = "Five MIoT device"
+DEFAULT_LAMP_NAME = 'Five Sterilization Lamp'
+DEFAULT_RACK_NAME = 'Five Sterilization Rack'
 
 DEVICE_CONFIG = vol.Schema({
     vol.Required(CONF_HOST): str,
     vol.Required(CONF_TOKEN): vol.All(str, vol.Length(min=32, max=32)),
-    vol.Optional(CONF_NAME, default = DEFAULT_NAME): str,
+    # vol.Optional(CONF_NAME, default = DEFAULT_NAME): str,
+    vol.Optional(CONF_NAME): str,
     # vol.Optional(CONF_MODEL, default = ''): vol.In(UVFIVE_MODELS),
 })
 
 
 class uvFiveMiotFlowHandler(config_entries.ConfigFlow, domain = DOMAIN):
-    """Handle a uvFive MIoT config flow."""
+    """Handle a Five MIoT config flow."""
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
@@ -85,45 +89,46 @@ class uvFiveMiotFlowHandler(config_entries.ConfigFlow, domain = DOMAIN):
 
         # Discovered device is not yet supported
         _LOGGER.debug(
-            "Not yet supported uvFive MIoT device '%s' discovered with host %s",
+            "Not yet supported Five MIoT device '%s' discovered with host %s",
             name,
             self.host,
         )
         return self.async_abort(reason="not_uvfive_miot")
 
     async def async_step_device(self, user_input=None):
-        """Handle a flow initialized by the user to configure a uvfive miot device."""
+        """Handle a flow initialized by the user to configure a Five MIoT device."""
         errors = {}
         if user_input is not None:
             self.host = user_input[CONF_HOST]
             token = user_input[CONF_TOKEN]
-            name = user_input[CONF_NAME]
             if user_input.get(CONF_MODEL):
                 model = user_input.get(CONF_MODEL)
             else:
                 model = None
 
-            try:
-                miot_device = Device(self.host, token)
-                device_info = miot_device.info()
-                if model is None and device_info is not None:
-                    model = device_info.model
+            # Try to connect to a Five MIoT Device.
+            connect_device_class = ConnectFiveDevice(self.hass)
+            await connect_device_class.async_connect_device(self.host, token)
+            device_info = connect_device_class.device_info
 
-                _LOGGER.info(
-                    "%s %s %s detected",
-                    model,
-                    device_info.firmware_version,
-                    device_info.hardware_version,
-                )
-            except DeviceException as ex:
-                raise PlatformNotReady from ex
+            if model is None and device_info is not None:
+                model = device_info.model
 
             if model is not None:
                 if self.mac is None and device_info is not None:
                     self.mac = format_mac(device_info.mac_address)
 
-                # Setup uvFive MIoT device
-                # name = user_input.get(CONF_NAME, model)
+                # Setup Five MIoT device
+                if user_input.get(CONF_NAME):
+                    name = user_input.get(CONF_NAME)
+                else:
+                    if model == 'uvfive.s_lamp.slmap2':
+                        name = DEFAULT_LAMP_NAME
+                    elif model == 'uvfive.steriliser.tiger':
+                        name = DEFAULT_RACK_NAME
+                    else:
+                        name = DEFAULT_NAME
+
                 for device_model in UVFIVE_MODELS:
                     if model.startswith(device_model):
                         unique_id = f"{model}-{device_info.mac_address}"
@@ -141,6 +146,10 @@ class uvFiveMiotFlowHandler(config_entries.ConfigFlow, domain = DOMAIN):
                                 CONF_MAC: self.mac,
                             },
                         )
+
+                errors["base"] = "unknown_device"
+            else:
+                errors["base"] = "cannot_connect"
 
         schema = DEVICE_CONFIG
 

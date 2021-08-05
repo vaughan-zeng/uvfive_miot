@@ -1,4 +1,4 @@
-"""Support for uvFive MIoT device."""
+"""Support for Five MIoT device."""
 from datetime import timedelta
 import logging
 

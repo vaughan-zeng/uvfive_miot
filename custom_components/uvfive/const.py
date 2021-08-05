@@ -1,4 +1,4 @@
-"""Constants for the uvFive MIoT device component."""
+"""Constants for the Five MIoT device component."""
 DOMAIN = "uvfive"
 
 CONF_FLOW_TYPE = "config_flow_device"
