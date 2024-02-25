@@ -6,12 +6,12 @@
   "documentation": "https://github.com/vaughan-zeng/uvfive_miot",
   "issue_tracker": "https://github.com/vaughan-zeng/uvfive_miot/issues",
   "requirements": [
-    "construct",
-    "python-miio>=0.5.3"
+    "construct==2.10.70",
+    "python-miio>=0.5.12"
   ],
   "dependencies": [],
   "codeowners": [
     "@von"
   ],
-  "version": "v0.1"
+  "version": "v0.1.2"
 }
